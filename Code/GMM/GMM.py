@@ -9,16 +9,16 @@ from __future__ import print_function
 
 import os
 import copy
-import numpy as np
 from scipy.stats import norm
-from Code.Data_Generation import *
+from Code.Modules.Data_Generation import *
+from Code.Modules.utils import *
 
 sys.path.append('..')
 
 # Built-in/Generic Imports
 
 __author__ = '{Chao ZHOU}'
-__copyright__ = 'Copyright {02/01/2020}, {Variational autoencoder}'
+__copyright__ = 'Copyright {04/02/2020}, {EM algorithm study}'
 __email__ = '{chaozhouucl@gmail.com}'
 __status__ = '{dev_status}'
 
@@ -28,18 +28,25 @@ def main():
     # ------------------------------------------------------------------------------------------------------------------
     # define project path
     # ------------------------------------------------------------------------------------------------------------------
-    project_path = os.path.abspath(os.path.join(os.getcwd())) + '/'
+    project_path = os.path.abspath(os.path.join(os.path.join(os.getcwd(), '..'), '..')) + '/'
 
     # ------------------------------------------------------------------------------------------------------------------
     # generate synthetic data and visualize them
     # ------------------------------------------------------------------------------------------------------------------
     # GMM data generation
     NO_DATA = 100000
-    x = gmm_data_generation(NO_DATA)
+    True_dist_param = {'gaussian1_params': {'gaussian_param_1_mean': 10,
+                                            'gaussian_param_1_scale': 10},
+                       'gaussian2_params': {'gaussian_param_2_mean': 40,
+                                            'gaussian_param_2_scale': 6, },
+                       'mix_coef': [0.3, 0.7]}
+    x = gmm_data_generation(NO_DATA, True_dist_param)
 
     # GMM data visualization
+    data_path = project_path + 'Data/GMM/'
+    write_data(x, file_path=data_path + 'GMM_Samples.pkl')
     plt.plot(x, np.zeros(shape=x.shape))
-    plt.savefig('visualization of data.png', format='png')
+    plt.savefig(data_path + 'visualization of data.png', format='png')
     plt.close()
 
     # ------------------------------------------------------------------------------------------------------------------
@@ -62,10 +69,22 @@ def main():
 
     new_respons = copy.deepcopy(init_respons)
     old_respons = copy.deepcopy(init_respons)
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # run EM for 10 times
+    # ------------------------------------------------------------------------------------------------------------------
     for i in range(10):
         new_respons = EM_E(x, new_respons, new_gaussain1_param, new_gaussain2_param, new_Mix_coef)
         new_gaussain1_param, new_gaussain2_param, new_Mix_coef = EM_M(x, new_respons, new_gaussain1_param,
+
                                                                       new_gaussain2_param, new_Mix_coef)
+    est__dist_param = {'gaussian1_params': new_gaussain1_param,
+                       'gaussian2_params': new_gaussain2_param,
+                       'mix_coef': new_Mix_coef
+                       }
+    results_path = project_path + 'Results/GMM/'
+    write_data(True_dist_param, file_path=results_path + 'True_dist_params.pkl')
+    write_data(est__dist_param, file_path=results_path + 'Est_dist_params.pkl')
 
 
 # E-step
