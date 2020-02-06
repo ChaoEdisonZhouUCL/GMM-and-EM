@@ -39,10 +39,10 @@ def main():
     # ------------------------------------------------------------------------------------------------------------------
     # DMM data generation
     NO_DATA = 100000
-    NO_Iterations = 3
+    NO_Iterations = 50
     True_dist_param = {
-        'true_dir1_params': [6, 25, 9],
-        'true_dir2_params': [7, 8, 23],
+        'true_dir1_params': [6, 25, 9, 7],
+        'true_dir2_params': [7, 8, 3, 23],
         'mix_coef': [0.3, 0.7]
     }
     NO_cluster = len(True_dist_param['mix_coef'])
@@ -72,8 +72,8 @@ def main():
     # ------------------------------------------------------------------------------------------------------------------
     init_dist_params = {
         'mix_coef': np.asarray([0.5, 0.5]),
-        'dir1_params': np.asarray([5, 20, 10]),
-        'dir2_params': np.asarray([8, 7, 20])
+        'dir1_params': np.asarray([5, 20, 10, 1]),
+        'dir2_params': np.asarray([8, 7, 2, 10])
     }
     init_respons = np.zeros(shape=(NO_DATA, NO_cluster))
 
@@ -91,7 +91,7 @@ def main():
         likelihood.append(calc_log_likelihood(dists_params=new_dist_params, data=x))
 
         # plot the intermeidate DMM contour
-        draw_dir_contour(new_dist_params, data=x, respon=new_respons, filepath=results_path + 'epoch{}/'.format(i + 1))
+        # draw_dir_contour(new_dist_params, data=x, respon=new_respons, filepath=results_path + 'epoch{}/'.format(i + 1))
 
     # ------------------------------------------------------------------------------------------------------------------
     # after EM

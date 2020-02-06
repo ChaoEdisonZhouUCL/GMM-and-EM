@@ -62,25 +62,32 @@ def dmm_data_generation(NO_DATA, True_dist_param):
     # parse True_dist_param
     ############################
     NO_DATA = NO_DATA
-    dir_param_1 = True_dist_param['true_dir1_params']
-    dir_param_2 = True_dist_param['true_dir2_params']
+    NO_data_per_cluster = []
     mix_coef = True_dist_param['mix_coef']
+    no_cluster = len(mix_coef)
 
-    NO_DATA_1 = int(NO_DATA * mix_coef[0])
-    NO_DATA_2 = NO_DATA - NO_DATA_1
+    for k in range(no_cluster):
+        if k + 1 == no_cluster:
+            no_data = NO_DATA - np.sum(NO_data_per_cluster, dtype=np.int32)
+        else:
+            no_data = int(NO_DATA * mix_coef[k])
+        NO_data_per_cluster.append(no_data)
 
-    data_1 = np.random.dirichlet(alpha=dir_param_1, size=NO_DATA_1)
-    label_1 = np.ones(shape=(NO_DATA_1, 1))
-    data_1 = np.concatenate((data_1, label_1), axis=1)
+        for key, value in True_dist_param.items():
+            if str(k + 1) in key:
+                dir_params = value
+                break
 
-    data_2 = np.random.dirichlet(alpha=dir_param_2, size=NO_DATA_2)
-    label_2 = np.ones(shape=(NO_DATA_2, 1)) * 2
-    data_2 = np.concatenate((data_2, label_2), axis=1)
+        data = np.random.dirichlet(alpha=dir_params, size=no_data)
+        label = np.ones(shape=(no_data, 1)) * (k + 1)
+        data = np.concatenate((data, label), axis=1)
+        if k == 0:
+            DATA = data
+        else:
+            DATA = np.concatenate((DATA, data))
 
-    data = np.concatenate((data_1, data_2))
-    np.random.shuffle(data)
-
-    label = data[:, -1]
-    data = data[:, :-1]
+    np.random.shuffle(DATA)
+    label = DATA[:, -1]
+    data = DATA[:, :-1]
 
     return data, label
