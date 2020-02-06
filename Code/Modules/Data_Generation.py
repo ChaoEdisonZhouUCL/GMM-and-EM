@@ -62,8 +62,8 @@ def dmm_data_generation(NO_DATA, True_dist_param):
     # parse True_dist_param
     ############################
     NO_DATA = NO_DATA
-    dir_param_1 = True_dist_param['dir_param_1']
-    dir_param_2 = True_dist_param['dir_param_2']
+    dir_param_1 = True_dist_param['true_dir1_params']
+    dir_param_2 = True_dist_param['true_dir2_params']
     mix_coef = True_dist_param['mix_coef']
 
     NO_DATA_1 = int(NO_DATA * mix_coef[0])

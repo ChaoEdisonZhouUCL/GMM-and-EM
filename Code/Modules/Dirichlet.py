@@ -14,7 +14,7 @@ _midpoints = [(_corners[(i + 1) % 3] + _corners[(i + 2) % 3]) / 2.0 \
               for i in range(3)]
 
 
-def xy2bc(xy, tol=1.e-3):
+def xy2bc(xy, tol=0.0):
     '''Converts 2D Cartesian coordinates to barycentric.
     Arguments:
         `xy`: A length-2 sequence containing the x and y value.
@@ -25,23 +25,26 @@ def xy2bc(xy, tol=1.e-3):
 
 
 class Dirichlet(object):
-    def __init__(self, alpha):
-        '''Creates Dirichlet distribution with parameter `alpha`.'''
-        from math import gamma
-        from operator import mul
-        self._alpha = np.array(alpha)
-        self._coef = gamma(np.sum(self._alpha)) / \
-                     reduce(mul, [gamma(a) for a in self._alpha])
+    def __init__(self, dist_params):
+        '''
+        Creates Dirichlet distribution with parameter `dist_params`.
+        e.x.,dist_params={
+        'mix_coef':[0.5,0.5],
+        'dir1_params':[2,3,19],
+        'dir2_params':[17,10,7]
+        }
+        '''
+        from scipy.stats import dirichlet
+        self.mix_coef = dist_params.pop('mix_coef')
+        self.K = len(self.mix_coef)
+        self.dir_mixtures = [dirichlet(dir_param) for dir_param in dist_params.values()]
 
     def pdf(self, x):
         '''Returns pdf value for `x`.'''
-        from operator import mul
-        return self._coef * reduce(mul, [xx ** (aa - 1)
-                                         for (xx, aa) in zip(x, self._alpha)])
-
-    def sample(self, N):
-        '''Generates a random sample of size `N`.'''
-        return np.random.dirichlet(self._alpha, N)
+        pdf = 0
+        for k in range(self.K):
+            pdf += self.mix_coef[k] * self.dir_mixtures[k].pdf(x)
+        return pdf
 
 
 def draw_pdf_contours(dist, border=False, nlevels=200, subdiv=8, **kwargs):
@@ -57,6 +60,10 @@ def draw_pdf_contours(dist, border=False, nlevels=200, subdiv=8, **kwargs):
     refiner = tri.UniformTriRefiner(_triangle)
     trimesh = refiner.refine_triangulation(subdiv=subdiv)
     pvals = [dist.pdf(xy2bc(xy)) for xy in zip(trimesh.x, trimesh.y)]
+    # pvals = []
+    # for xy in zip(trimesh.x, trimesh.y):
+    #     pdf_value = dist.pdf(xy2bc(xy))
+    #     pvals.append(pdf_value)
 
     plt.tricontourf(trimesh, pvals, nlevels, **kwargs)
     plt.axis('equal')
