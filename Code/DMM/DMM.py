@@ -7,14 +7,14 @@ Description:
 # Futures
 from __future__ import print_function
 
-import os
 import copy
-from scipy.stats import dirichlet
-from scipy import optimize
+
 from scipy.special import digamma, polygamma
+from scipy.stats import dirichlet
+
 from Code.Modules.Data_Generation import *
+from Code.Modules.Dirichlet import *
 from Code.Modules.utils import *
-from mpl_toolkits.mplot3d import Axes3D
 
 sys.path.append('..')
 
@@ -32,7 +32,8 @@ def main():
     # define project path
     # ------------------------------------------------------------------------------------------------------------------
     project_path = os.path.abspath(os.path.join(os.path.join(os.getcwd(), '..'), '..')) + '/'
-
+    data_path = project_path + 'Data/DMM/'
+    results_path = project_path + 'Results/DMM/'
     # ------------------------------------------------------------------------------------------------------------------
     # generate synthetic data and visualize them
     # ------------------------------------------------------------------------------------------------------------------
@@ -46,13 +47,13 @@ def main():
     x, label = dmm_data_generation(NO_DATA, True_dist_param)
 
     # DMM data save
-    data_path = project_path + 'Data/DMM/'
+
     write_data(x, file_path=data_path + 'DMM_Samples.pkl')
     write_data(label, file_path=data_path + 'DMM_Samples_Label.pkl')
 
     # DMM data visualization
     fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
+    # ax = fig.add_subplot(111, projection='3d')
     ax = fig.add_subplot(111)
     ax.scatter(
         # x[np.where(label == 1)[0], 0],
@@ -96,17 +97,41 @@ def main():
     # ------------------------------------------------------------------------------------------------------------------
     # run EM for 10 times
     # ------------------------------------------------------------------------------------------------------------------
+    likelihood = []
     for i in range(10):
         new_respons = EM_E(x, new_respons, new_dir1_param, new_dir2_param, new_Mix_coef)
         new_dir1_param, new_dir2_param, new_Mix_coef = EM_M(x, new_respons, new_dir1_param, new_dir2_param,
                                                             new_Mix_coef)
+        # calc likelihood
+        dists = {
+            'mix_coef': new_Mix_coef,
+            'dist1': dirichlet(new_dir1_param),
+            'dist2': dirichlet(new_dir2_param)
+        }
+        likelihood.append(calc_log_likelihood(dists=dists, data=x))
+
+        # plot the intermeidate DMM contour
+        dist_param = {'dir1_params': new_dir1_param,
+                      'dir2_params': new_dir2_param,
+
+                      }
+        draw_dir_contour(dist_param, data=x, respon=new_respons, filepath=results_path + 'epoch{}/'.format(i + 1))
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # after EM
+    # ------------------------------------------------------------------------------------------------------------------
+    # save results
     est__dist_param = {'dir1_params': new_dir1_param,
                        'dir2_params': new_dir2_param,
                        'mix_coef': new_Mix_coef
                        }
-    results_path = project_path + 'Results/DMM/'
+
     write_data(True_dist_param, file_path=results_path + 'True_dist_params.pkl')
     write_data(est__dist_param, file_path=results_path + 'Est_dist_params.pkl')
+    write_data(likelihood, file_path=results_path + 'likelihood.pkl')
+
+    # plot likelihood
+    plot_likelihoood(likelihood, filepath=results_path)
 
 
 # E-step
@@ -158,7 +183,7 @@ def EM_M(x, new_respons, new_dir1_param, new_dir2_param, new_Mix_coef):
     return new_dir1_param, new_dir2_param, new_Mix_coef
 
 
-# calc inverse digamma
+# calc inverse digamma, for updating of params for dirichlet in M step
 def inv_digamma(y, eps=1e-8, max_iter=100):
     '''
     Numerical inverse to the digamma function by root finding;
@@ -183,6 +208,69 @@ def inv_digamma(y, eps=1e-8, max_iter=100):
         xold = xnew
 
     return xnew
+
+
+# calc the likelihood
+def calc_log_likelihood(dists, data):
+    dists = copy.deepcopy(dists)
+    data = copy.deepcopy(data)
+    mix_coef = dists.pop('mix_coef')
+    no_mixtures = len(mix_coef)
+    likelihood = np.zeros(shape=(data.shape[0], no_mixtures))
+
+    for k in range(no_mixtures):
+        pi = mix_coef[0]
+        for key, value in dists.items():
+            if str(k + 1) in key:
+                pdf_value = pi * value.pdf(data.T)
+                break
+        likelihood[:, k] = pdf_value
+
+    likelihood = np.sum(likelihood, axis=1)
+    likelihood = np.log(likelihood)
+    likelihood = np.sum(likelihood)
+
+    return likelihood
+
+
+# plot likelihood
+def plot_likelihoood(data, filepath):
+    data = copy.deepcopy(data)
+    data = data[2:]
+    steps = len(data)
+
+    plt.figure()
+    plt.plot(range(steps), data)
+    plt.savefig(filepath + 'likelihood.png')
+    plt.close()
+
+
+def data_scatter(data, respon, filepath):
+    data = copy.deepcopy(data)
+    respon = copy.deepcopy(respon)
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    # scatter the data colored by corresponding respons
+    ax.scatter(data[:, 1], data[:, 2], c=np.array([respon[:, 0], respon[:, 1], np.zeros_like(respon[:, 1])]).T)
+
+    plt.savefig(filepath + 'data_dist_visualization.png')
+
+
+def draw_dir_contour(dist_params, data, respon, filepath):
+    f = plt.figure(figsize=(8, 6))
+    alphas = dist_params.values()
+    for (i, alpha) in enumerate(alphas):
+        plt.subplot(2, len(alphas), i + 1)
+        dist = Dirichlet(alpha)
+        draw_pdf_contours(dist)
+        title = r'$\alpha$ = (%.3f, %.3f, %.3f)' % tuple(alpha)
+        plt.title(title, fontdict={'fontsize': 8})
+        plt.subplot(2, len(alphas), i + 1 + len(alphas))
+        plot_points(data, respon)
+
+    if not os.path.exists(filepath):
+        os.mkdir(filepath)
+    plt.savefig(filepath + 'dist_visualization.png')
 
 
 if __name__ == '__main__':
